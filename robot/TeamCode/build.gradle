@@ -1,0 +1,3 @@
+plugins { id 'java-library' }
+dependencies { implementation project(':sdk') }
+tasks.withType(JavaCompile).configureEach { options.release = 8 }

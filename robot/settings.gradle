@@ -1,4 +1,5 @@
 rootProject.name = 'ftc-sim-robot'
 
-// sdk: the FTC SDK API surface (com.qualcomm.*, org.firstinspires.*), backed by the simulator
-include 'sdk'
+// sdk:      the FTC SDK API surface (com.qualcomm.*, org.firstinspires.*), backed by the simulator
+// TeamCode: your OpModes, same package and layout as in an FTC Robot Controller project
+include 'sdk', 'TeamCode'
