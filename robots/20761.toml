@@ -1,0 +1,102 @@
+# Team 20761, DECODE (2025-2026).
+#
+# Device names and the Pinpoint setup come from the team's code. Everything marked GUESS is a
+# typical value for a DECODE robot and should be replaced with the real robot's numbers.
+
+name = "20761"
+mass_kg = 14.0                      # GUESS: about 31 lb with shooter and intake
+length_in = 17.0                    # GUESS
+width_in = 17.0                     # GUESS
+imu = "imu"
+
+[drivetrain]
+kind = "mecanum"
+wheel_diameter_mm = 104             # GUESS: goBILDA 104 mm mecanum
+wheelbase_in = 12.0                 # GUESS
+track_width_in = 13.5               # GUESS
+front_left = "fl"
+front_right = "fr"
+back_left = "bl"
+back_right = "br"
+# DrivetrainFO reverses the right motors, so the right side is the mirrored one on this robot.
+mirrored_side = "right"
+
+# ---- Control Hub
+
+[[motors]]
+name = "fl"
+type = "gobilda-312"                # GUESS
+port = 0
+
+[[motors]]
+name = "fr"
+type = "gobilda-312"                # GUESS
+port = 1
+
+[[motors]]
+name = "bl"
+type = "gobilda-312"                # GUESS
+port = 2
+
+[[motors]]
+name = "br"
+type = "gobilda-312"                # GUESS
+port = 3
+
+[[servos]]
+name = "led"
+kind = "rgb-indicator"              # goBILDA RGB Indicator Light, driven like a servo
+port = 0
+
+# ---- Expansion Hub
+# GUESS: ports and hubs. The code uses 9 motors, but a Control Hub plus one Expansion Hub only
+# has 8 motor ports, so the climber is on a second Expansion Hub here. Fix to match the robot.
+
+[[motors]]
+name = "intake"
+type = "gobilda-1150"               # GUESS
+hub = "Expansion Hub 2"
+port = 0
+load = { inertia_kg_m2 = 0.0002, friction_nm = 0.05 }      # GUESS: roller
+
+[[motors]]
+name = "intakething"
+type = "gobilda-435"                # GUESS
+hub = "Expansion Hub 2"
+port = 1
+load = { inertia_kg_m2 = 0.0001, friction_nm = 0.05 }      # GUESS: transfer roller
+
+[[motors]]
+name = "shooter1"
+type = "gobilda-6000"               # GUESS: bare motor, the usual flywheel choice
+hub = "Expansion Hub 2"
+port = 2
+load = { flywheel_mass_kg = 0.15, flywheel_diameter_mm = 96, friction_nm = 0.01 }   # GUESS
+
+[[motors]]
+name = "shooter2"
+type = "gobilda-6000"               # GUESS
+hub = "Expansion Hub 2"
+port = 3
+load = { flywheel_mass_kg = 0.15, flywheel_diameter_mm = 96, friction_nm = 0.01 }   # GUESS
+
+[[motors]]
+name = "climber"
+type = "gobilda-117"                # GUESS
+hub = "Expansion Hub 3"
+port = 0
+load = { inertia_kg_m2 = 0.001, friction_nm = 0.3 }        # GUESS: winch
+
+# ---- Sensors
+
+# From OdoOp: setOffsets(3.5, 17, CM), 4-bar pods, X encoder REVERSED, Y encoder FORWARD.
+# The physical setup here is chosen so that those settings are correct.
+[[pinpoints]]
+name = "odo"
+x_pod_left_mm = 35
+y_pod_forward_mm = 170
+pods = "4-bar"
+x_pod_reversed = true
+
+[[webcams]]
+name = "Webcam 1"
