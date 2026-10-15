@@ -9,6 +9,10 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 /** Driver Station telemetry. {@link #update()} publishes the current lines to the simulator. */
 final class SimTelemetry implements Telemetry {
+    /** More than a Driver Station screen can show; also keeps one update from flooding the link. */
+    static final int MAX_LINES = 200;
+    static final int MAX_LINE_LENGTH = 500;
+
     private final List<Object> entries = new ArrayList<>(); // ItemImpl or LineImpl
     private volatile List<String> published;
     private boolean autoClear = true;
@@ -170,7 +174,15 @@ final class SimTelemetry implements Telemetry {
     @Override
     public synchronized boolean update() {
         List<String> lines = new ArrayList<>();
-        for (Object e : entries) lines.add(e instanceof ItemImpl ? ((ItemImpl) e).render() : ((LineImpl) e).render());
+        for (Object e : entries) {
+            if (lines.size() == MAX_LINES) {
+                lines.add("(" + (entries.size() - MAX_LINES) + " more lines not shown: telemetry.update() was called with "
+                        + entries.size() + " items)");
+                break;
+            }
+            String line = e instanceof ItemImpl ? ((ItemImpl) e).render() : ((LineImpl) e).render();
+            lines.add(line.length() > MAX_LINE_LENGTH ? line.substring(0, MAX_LINE_LENGTH) + "..." : line);
+        }
         published = lines;
         if (autoClear) clear();
         return true;
