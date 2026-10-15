@@ -1,3 +1,18 @@
 plugins { id 'java-library' }
 dependencies { implementation project(':sdk') }
+// FTC projects compile at Java 8 (build.common.gradle in the Robot Controller project).
 tasks.withType(JavaCompile).configureEach { options.release = 8 }
+
+// Run a real team's code instead of the examples here:
+//   gradlew :runner:run -Pteamcode=C:\path\to\team-repo
+// The path can be the repo root or its TeamCode folder. The team's files are only read.
+def external = findProperty('teamcode')
+if (external) {
+    def root = file(external)
+    def src = [new File(root, 'TeamCode/src/main/java'), new File(root, 'src/main/java')].find { it.isDirectory() }
+    if (src == null) {
+        throw new GradleException("No TeamCode sources under ${root} (looked for TeamCode/src/main/java and src/main/java)")
+    }
+    sourceSets.main.java.srcDirs = [src]
+    logger.lifecycle("TeamCode: building ${src}")
+}
