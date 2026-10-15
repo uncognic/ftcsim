@@ -12,6 +12,8 @@ license = "MIT"
 # Pinned on purpose. Upgrade these in their own change, not alongside features.
 rapier3d = "=0.23.1"
 bevy = "=0.16.1"
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "0.8.23"
 sim-core = { path = "sim/crates/sim-core" }
 
 # Physics needs to be fast even in debug builds; our own code stays debuggable.

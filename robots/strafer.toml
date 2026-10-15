@@ -1,0 +1,38 @@
+# goBILDA Strafer-style mecanum chassis: the simulator's default robot.
+# Names match the example OpModes in robot/TeamCode.
+
+name = "Strafer"
+mass_kg = 12.0
+length_in = 17.0
+width_in = 16.5
+imu = "imu"
+
+[drivetrain]
+kind = "mecanum"
+wheel_diameter_mm = 104
+wheelbase_in = 11.8
+track_width_in = 13.0
+front_left = "frontLeft"
+front_right = "frontRight"
+back_left = "backLeft"
+back_right = "backRight"
+
+[[motors]]
+name = "frontLeft"
+type = "gobilda-312"
+port = 0
+
+[[motors]]
+name = "frontRight"
+type = "gobilda-312"
+port = 1
+
+[[motors]]
+name = "backLeft"
+type = "gobilda-312"
+port = 2
+
+[[motors]]
+name = "backRight"
+type = "gobilda-312"
+port = 3

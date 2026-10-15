@@ -7,3 +7,5 @@ license.workspace = true
 
 [dependencies]
 rapier3d.workspace = true
+serde.workspace = true
+toml.workspace = true

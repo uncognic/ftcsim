@@ -54,7 +54,22 @@ struct TelemetryText;
 struct StatusText;
 
 fn main() {
-    let world = SimWorld::new(RobotConfig::default_mecanum(), SimWorld::default_start());
+    // ftc-sim [--robot robots/20761.toml]
+    let mut args = std::env::args().skip(1);
+    let mut config = RobotConfig::default_mecanum();
+    while let Some(arg) = args.next() {
+        if arg == "--robot" {
+            let path = args.next().unwrap_or_default();
+            config = RobotConfig::load(std::path::Path::new(&path)).unwrap_or_else(|e| {
+                eprintln!("{e}");
+                std::process::exit(1);
+            });
+        } else {
+            eprintln!("usage: ftc-sim [--robot FILE]");
+            std::process::exit(2);
+        }
+    }
+    let world = SimWorld::new(config, SimWorld::default_start());
     let link = match Link::bind(DEFAULT_PORT) {
         Ok(link) => link,
         Err(e) => {

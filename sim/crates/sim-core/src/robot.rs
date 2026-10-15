@@ -19,6 +19,8 @@ pub enum WheelKind {
 pub struct MotorConfig {
     /// Name used with `hardwareMap.get(...)`.
     pub name: String,
+    /// "Control Hub" or an Expansion Hub's name.
+    pub hub: String,
     pub port: u8,
     pub spec: MotorSpec,
 }
@@ -53,7 +55,7 @@ pub struct RobotConfig {
 impl RobotConfig {
     /// A typical goBILDA strafer: 312 RPM motors on 104 mm mecanum wheels, left side mirrored.
     pub fn default_mecanum() -> Self {
-        let motor = |name: &str, port| MotorConfig { name: name.into(), port, spec: MotorSpec::GOBILDA_312 };
+        let motor = |name: &str, port| MotorConfig { name: name.into(), hub: "Control Hub".into(), port, spec: MotorSpec::GOBILDA_312 };
         let (fx, sz) = (5.9 * INCH, 6.5 * INCH);
         let wheel = |motor, x, z, rollers_right, mount_sign| WheelConfig {
             motor,

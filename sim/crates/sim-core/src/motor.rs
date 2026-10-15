@@ -46,6 +46,23 @@ impl MotorSpec {
 
     pub const ALL: [Self; 5] = [Self::GOBILDA_117, Self::GOBILDA_223, Self::GOBILDA_312, Self::GOBILDA_435, Self::GOBILDA_1150];
 
+    /// Config-file names, e.g. "gobilda-312".
+    const NAMES: [(&'static str, Self); 5] = [
+        ("gobilda-117", Self::GOBILDA_117),
+        ("gobilda-223", Self::GOBILDA_223),
+        ("gobilda-312", Self::GOBILDA_312),
+        ("gobilda-435", Self::GOBILDA_435),
+        ("gobilda-1150", Self::GOBILDA_1150),
+    ];
+
+    pub fn by_name(name: &str) -> Option<Self> {
+        Self::NAMES.iter().find(|(n, _)| *n == name).map(|(_, s)| *s)
+    }
+
+    pub fn names() -> Vec<&'static str> {
+        Self::NAMES.iter().map(|(n, _)| *n).collect()
+    }
+
     /// Free speed at nominal voltage, rad/s at the output.
     pub fn free_speed(&self) -> f64 {
         self.free_speed_rpm * 2.0 * PI / 60.0

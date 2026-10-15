@@ -8,6 +8,7 @@
 //! The FTC field frame (x right, y away from the red wall) maps to physics as
 //! `phys.x = field.x`, `phys.z = -field.y`.
 
+pub mod config;
 pub mod gamepad;
 pub mod hub;
 pub mod link;

@@ -1,7 +1,7 @@
 //! Run an OpMode with no window, as fast as the CPU allows, and print what the robot did.
 //!
 //! ```text
-//! sim-headless --opmode "Encoder Square" [--seconds 30] [--port 7171]
+//! sim-headless --opmode "Encoder Square" [--robot robots/strafer.toml] [--seconds 30] [--port 7171]
 //! ```
 //! Start the Java runner separately (`gradlew :runner:run` in `robot/`); it connects here.
 
@@ -16,20 +16,29 @@ fn main() {
     let mut opmode = None;
     let mut seconds = 30.0;
     let mut port = DEFAULT_PORT;
+    let mut robot = None;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
             "--opmode" => opmode = args.next(),
             "--seconds" => seconds = args.next().and_then(|s| s.parse().ok()).unwrap_or(seconds),
             "--port" => port = args.next().and_then(|s| s.parse().ok()).unwrap_or(port),
+            "--robot" => robot = args.next(),
             _ => {
-                eprintln!("usage: sim-headless --opmode NAME [--seconds S] [--port P]");
+                eprintln!("usage: sim-headless --opmode NAME [--robot FILE] [--seconds S] [--port P]");
                 std::process::exit(2);
             }
         }
     }
 
-    let mut world = SimWorld::new(RobotConfig::default_mecanum(), SimWorld::default_start());
+    let config = match robot {
+        Some(path) => RobotConfig::load(std::path::Path::new(&path)).unwrap_or_else(|e| {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }),
+        None => RobotConfig::default_mecanum(),
+    };
+    let mut world = SimWorld::new(config, SimWorld::default_start());
     let mut link = Link::bind(port).unwrap_or_else(|e| {
         eprintln!("cannot listen on port {port}: {e}");
         std::process::exit(1);
