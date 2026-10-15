@@ -30,10 +30,26 @@ public final class SimBus {
         return time;
     }
 
-    /** Simulator time in nanoseconds, or the system clock if no simulator is attached. */
+    /**
+     * Simulator time in nanoseconds, or the system clock if no simulator is attached.
+     *
+     * <p>On a real robot, time passes while a loop spins, so {@code while (timer.seconds() < 3) {}}
+     * ends after 3 seconds even though it never touches hardware. To get the same here, every
+     * {@link #CLOCK_READS_PER_SLOT} clock reads by the OpMode thread cost one bus slot, which lets
+     * simulated time move on.
+     */
     public static long nanoTime() {
-        return attached ? (long) (time * 1e9) : System.nanoTime();
+        if (!attached) return System.nanoTime();
+        if (Thread.currentThread() == userThread && ++clockReads >= CLOCK_READS_PER_SLOT) {
+            clockReads = 0;
+            transaction(1);
+        }
+        return (long) (time * 1e9);
     }
+
+    private static final int CLOCK_READS_PER_SLOT = 100;
+    /** Only touched by the OpMode thread. */
+    private static int clockReads;
 
     /** One hardware call by the current thread. Only the OpMode thread is charged. */
     public static void transaction(int cost) {

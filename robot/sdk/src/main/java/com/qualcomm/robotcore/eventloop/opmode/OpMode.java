@@ -36,7 +36,7 @@ public abstract class OpMode {
     }
 
     public double getRuntime() {
-        return SimBus.now() - startTime;
+        return SimBus.nanoTime() * 1e-9 - startTime;
     }
 
     public void resetRuntime() {
