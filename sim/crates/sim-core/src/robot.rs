@@ -109,6 +109,8 @@ pub struct RobotConfig {
     pub wheels: Vec<WheelConfig>,
     pub servos: Vec<ServoConfig>,
     pub pinpoints: Vec<PinpointConfig>,
+    /// USB webcam names.
+    pub webcams: Vec<String>,
     pub imu_name: String,
 }
 
@@ -141,6 +143,7 @@ impl RobotConfig {
             ],
             servos: Vec::new(),
             pinpoints: Vec::new(),
+            webcams: Vec::new(),
             imu_name: "imu".into(),
         }
     }

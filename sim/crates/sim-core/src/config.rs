@@ -52,6 +52,14 @@ struct File {
     servos: Vec<Servo>,
     #[serde(default)]
     pinpoints: Vec<Pinpoint>,
+    #[serde(default)]
+    webcams: Vec<Webcam>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Webcam {
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -210,6 +218,7 @@ impl RobotConfig {
         let all_names = file.motors.iter().map(|m| &m.name)
             .chain(file.servos.iter().map(|s| &s.name))
             .chain(file.pinpoints.iter().map(|p| &p.name))
+            .chain(file.webcams.iter().map(|w| &w.name))
             .chain(std::iter::once(&file.imu));
         for name in all_names {
             if !names.insert(name.as_str()) {
@@ -316,6 +325,7 @@ impl RobotConfig {
             wheels,
             servos,
             pinpoints,
+            webcams: file.webcams.into_iter().map(|w| w.name).collect(),
             imu_name: file.imu,
         })
     }

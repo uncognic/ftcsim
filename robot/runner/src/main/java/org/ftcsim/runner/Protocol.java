@@ -25,6 +25,7 @@ final class Protocol {
     static final int DEVICE_SERVO = 2;
     static final int DEVICE_CRSERVO = 3;
     static final int DEVICE_PINPOINT = 4;
+    static final int DEVICE_WEBCAM = 5;
 
     static final int CONTROL_INIT = 1;
     static final int CONTROL_START = 2;

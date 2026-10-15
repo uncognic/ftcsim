@@ -55,6 +55,8 @@ final class SimHardware {
                 pinpoints.add(chip);
                 hardwareMap.putI2c(name, chip);
                 hardwareMap.put(name, new GoBildaPinpointDriver(chip, true));
+            } else if (kind == Protocol.DEVICE_WEBCAM) {
+                hardwareMap.put(name, new SimWebcam(name));
             } else if (kind == Protocol.DEVICE_IMU) {
                 imu = new SimImu(name);
                 hardwareMap.put(name, imu);

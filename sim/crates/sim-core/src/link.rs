@@ -114,6 +114,13 @@ impl Link {
             ticks_per_rev: 0.0,
             max_rpm: 0.0,
         }));
+        devices.extend(world.config.webcams.iter().map(|name| DeviceInfo {
+            kind: DeviceKind::Webcam,
+            name: name.clone(),
+            port: 0,
+            ticks_per_rev: 0.0,
+            max_rpm: 0.0,
+        }));
         devices.push(DeviceInfo { kind: DeviceKind::Imu, name: world.config.imu_name.clone(), port: 0, ticks_per_rev: 0.0, max_rpm: 0.0 });
         proto::write_config(&mut writer, &world.config.name, &devices)?;
         self.opmodes = opmodes;

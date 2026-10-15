@@ -62,6 +62,7 @@ pub enum DeviceKind {
     Servo = 2,
     CrServo = 3,
     Pinpoint = 4,
+    Webcam = 5,
 }
 
 #[derive(Clone, Debug, PartialEq)]
