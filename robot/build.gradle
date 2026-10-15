@@ -1,0 +1,10 @@
+subprojects {
+    apply plugin: 'java'
+    repositories { mavenCentral() }
+    // Compile with JDK 21 whatever JAVA_HOME points at; each module picks its own --release level.
+    java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-Xlint:-options']
+    }
+}

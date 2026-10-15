@@ -1,0 +1,4 @@
+rootProject.name = 'ftc-sim-robot'
+
+// sdk: the FTC SDK API surface (com.qualcomm.*, org.firstinspires.*), backed by the simulator
+include 'sdk'

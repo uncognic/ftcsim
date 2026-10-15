@@ -1,0 +1,4 @@
+plugins { id 'java-library' }
+// The real SDK targets Java 8; compiling against the same level catches code that would not
+// build in Android Studio.
+tasks.withType(JavaCompile).configureEach { options.release = 8 }
