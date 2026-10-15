@@ -43,6 +43,24 @@ controller works too. **F1/F2/F3** switch cameras, **R** puts the robot back at 
 Edit or add OpModes in `robot/TeamCode/src/main/java/org/firstinspires/ftc/teamcode/`, then
 restart the runner. The simulator can stay open.
 
+### Running your team's code
+
+Point the runner at your Robot Controller project (the folder with `TeamCode/` in it):
+
+```
+cd robot
+gradlew :runner:run -Pteamcode=C:\path\to\your-team-repo
+```
+
+Your `TeamCode` sources are compiled as they are, at Java 8 like the Android build; nothing in
+your repo is changed. Hardware names must match the simulated robot's configuration, just like
+on a real robot: a name the simulator doesn't have fails with the SDK's usual "Unable to find a
+hardware device" error.
+
+Supported SDK surface so far: motors (including PIDF and RUN_TO_POSITION), servos, IMU,
+voltage sensor, gamepads with `...WasPressed()`, telemetry, `ElapsedTime`, the goBILDA Pinpoint
+driver and the I2C device API it is built on, and VisionPortal/AprilTag (no detections yet).
+
 ### Headless, faster than real time
 
 ```
