@@ -14,6 +14,8 @@ final class SimHardware {
     final String robotName;
     final HardwareMap hardwareMap = new HardwareMap();
     final List<SimDcMotor> motors = new ArrayList<>();
+    /** SimServo or SimCRServo, in CONFIG order. */
+    final List<Object> servos = new ArrayList<>();
     final SimVoltageSensor voltageSensor = new SimVoltageSensor();
     final Gamepad gamepad1 = new Gamepad();
     final Gamepad gamepad2 = new Gamepad();
@@ -38,6 +40,14 @@ final class SimHardware {
                 SimDcMotor motor = new SimDcMotor(name, port, ticksPerRev, maxRpm, this);
                 motors.add(motor);
                 hardwareMap.put(name, motor);
+            } else if (kind == Protocol.DEVICE_SERVO) {
+                SimServo servo = new SimServo(name, port, this);
+                servos.add(servo);
+                hardwareMap.put(name, servo);
+            } else if (kind == Protocol.DEVICE_CRSERVO) {
+                SimCRServo servo = new SimCRServo(name, port, this);
+                servos.add(servo);
+                hardwareMap.put(name, servo);
             } else if (kind == Protocol.DEVICE_IMU) {
                 imu = new SimImu(name);
                 hardwareMap.put(name, imu);
@@ -90,9 +100,15 @@ final class SimHardware {
         readGamepad(in, gamepad2);
     }
 
-    void writeMotorCommands(DataOutputStream out) throws IOException {
+    /** Motor commands, then servo outputs, in CONFIG order. */
+    void writeOutputs(DataOutputStream out) throws IOException {
         out.writeByte(motors.size());
         for (SimDcMotor m : motors) m.writeCommand(out);
+        out.writeByte(servos.size());
+        for (Object s : servos) {
+            if (s instanceof SimServo) ((SimServo) s).writeCommand(out);
+            else ((SimCRServo) s).writeCommand(out);
+        }
     }
 
     private static void readGamepad(DataInputStream in, Gamepad target) throws IOException {

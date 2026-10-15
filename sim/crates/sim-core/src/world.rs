@@ -70,6 +70,18 @@ pub struct MotorState {
     pub current: f64,
 }
 
+/// A servo's output shaft. Positional servos report position 0..1 of their range; continuous
+/// servos accumulate angle. The SDK gets no feedback from either, as on a real robot.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ServoState {
+    /// What the SDK last sent: position 0..1 or continuous power -1..1.
+    pub command: f64,
+    /// False until the first command: real hubs send no PWM until a servo is set.
+    pub enabled: bool,
+    pub position: f64,
+    pub angle_deg: f64,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Battery {
     pub open_circuit: f64,
@@ -159,6 +171,7 @@ pub struct SimWorld {
     pub config: RobotConfig,
     pub wheels: Vec<WheelState>,
     pub motors: Vec<MotorState>,
+    pub servos: Vec<ServoState>,
     pub battery: Battery,
     pub gamepads: [GamepadState; 2],
     pub pieces: Vec<GamePiece>,
@@ -175,6 +188,7 @@ impl SimWorld {
             time: 0.0,
             wheels: vec![WheelState::default(); config.wheels.len()],
             motors: vec![MotorState::default(); config.motors.len()],
+            servos: vec![ServoState { position: 0.5, ..Default::default() }; config.servos.len()],
             config,
             battery: Battery::default(),
             gamepads: [GamepadState::default(); 2],
@@ -287,6 +301,10 @@ impl SimWorld {
         }
         self.battery.current = draw;
         self.battery.voltage = (self.battery.open_circuit - self.battery.internal_resistance * draw).max(5.0);
+
+        for (s, cfg) in self.servos.iter_mut().zip(&self.config.servos) {
+            step_servo(s, cfg, dt);
+        }
 
         self.physics.step();
         self.time += dt;
@@ -420,6 +438,23 @@ impl SimWorld {
             );
             self.pieces.push(GamePiece { body, radius: RADIUS, color: if i % 3 == 0 { green } else { purple } });
         }
+    }
+}
+
+fn step_servo(s: &mut ServoState, cfg: &crate::robot::ServoConfig, dt: f64) {
+    use crate::robot::ServoKind;
+    if !s.enabled {
+        return;
+    }
+    match cfg.kind {
+        ServoKind::Positional => {
+            let step = cfg.speed_deg_per_s / cfg.range_deg * dt;
+            s.position += (s.command.clamp(0.0, 1.0) - s.position).clamp(-step, step);
+            s.angle_deg = (s.position - 0.5) * cfg.range_deg;
+        }
+        ServoKind::Continuous => s.angle_deg += s.command.clamp(-1.0, 1.0) * cfg.speed_deg_per_s * dt,
+        // A light, not a shaft: the color changes as soon as the pulse width does.
+        ServoKind::RgbIndicator => s.position = s.command.clamp(0.0, 1.0),
     }
 }
 
@@ -598,6 +633,21 @@ mod tests {
             let (_, v) = w.encoder(i);
             assert!((v.abs() / max - 0.5).abs() < 0.05, "motor {i} at {:.0} ticks/s, wanted {:.0}", v.abs(), max * 0.5);
         }
+    }
+
+    #[test]
+    fn servo_slews_at_rated_speed_and_waits_for_first_command() {
+        let mut text = include_str!("../../../../robots/strafer.toml").to_string();
+        text.push_str("\n[[servos]]\nname = \"claw\"\nport = 0\n");
+        let mut w = SimWorld::new(RobotConfig::from_toml(&text).unwrap(), Pose2d::new(0.0, -1.2, 1.57));
+        run(&mut w, 0.2);
+        assert_eq!(w.servos[0].position, 0.5, "no PWM before the first setPosition");
+        w.servos[0].command = 1.0;
+        w.servos[0].enabled = true;
+        run(&mut w, 0.25); // 240°/s over a 300° range: 0.2 of the range in 0.25 s
+        assert!((w.servos[0].position - 0.7).abs() < 0.01, "at {}", w.servos[0].position);
+        run(&mut w, 1.0);
+        assert!((w.servos[0].position - 1.0).abs() < 1e-9);
     }
 
     #[test]

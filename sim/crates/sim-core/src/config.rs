@@ -28,7 +28,7 @@
 //! ```
 
 use crate::motor::MotorSpec;
-use crate::robot::{Load, MotorConfig, RobotConfig, WheelConfig, WheelKind};
+use crate::robot::{Load, MotorConfig, RobotConfig, ServoConfig, ServoKind, WheelConfig, WheelKind};
 use crate::units::INCH;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -48,6 +48,36 @@ struct File {
     drivetrain: Drivetrain,
     #[serde(default)]
     motors: Vec<Motor>,
+    #[serde(default)]
+    servos: Vec<Servo>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Servo {
+    name: String,
+    #[serde(default = "default_servo_kind")]
+    kind: String,
+    #[serde(default = "default_hub")]
+    hub: String,
+    port: u8,
+    /// Defaults match a goBILDA 2000-series torque servo: 300° travel, 0.25 s per 60°.
+    #[serde(default = "default_servo_range")]
+    range_deg: f64,
+    #[serde(default = "default_servo_speed")]
+    speed_deg_per_s: f64,
+}
+
+fn default_servo_kind() -> String {
+    "servo".into()
+}
+
+fn default_servo_range() -> f64 {
+    300.0
+}
+
+fn default_servo_speed() -> f64 {
+    240.0
 }
 
 fn default_frame_height() -> f32 {
@@ -172,6 +202,34 @@ impl RobotConfig {
             motors.push(MotorConfig { name: m.name.clone(), hub: m.hub.clone(), port: m.port, spec, load });
         }
 
+        let mut servo_ports = HashSet::new();
+        let mut servos = Vec::new();
+        for s in &file.servos {
+            let kind = match s.kind.as_str() {
+                "servo" => ServoKind::Positional,
+                "cr-servo" => ServoKind::Continuous,
+                "rgb-indicator" => ServoKind::RgbIndicator,
+                k => return Err(format!("servo \"{}\": unknown kind \"{k}\" (known: servo, cr-servo, rgb-indicator)", s.name)),
+            };
+            if s.port > 5 {
+                return Err(format!("servo \"{}\": port {} does not exist (hubs have servo ports 0-5)", s.name, s.port));
+            }
+            if !servo_ports.insert((s.hub.clone(), s.port)) {
+                return Err(format!("servo \"{}\": {} servo port {} is already used", s.name, s.hub, s.port));
+            }
+            if motors.iter().any(|m| m.name == s.name) || servos.iter().any(|x: &ServoConfig| x.name == s.name) {
+                return Err(format!("two devices are named \"{}\"", s.name));
+            }
+            servos.push(ServoConfig {
+                name: s.name.clone(),
+                hub: s.hub.clone(),
+                port: s.port,
+                kind,
+                range_deg: s.range_deg,
+                speed_deg_per_s: s.speed_deg_per_s,
+            });
+        }
+
         let d = &file.drivetrain;
         let find = |name: &str| {
             motors.iter().position(|m| m.name == name).ok_or_else(|| format!("drivetrain uses motor \"{name}\", which is not in [[motors]]"))
@@ -206,6 +264,7 @@ impl RobotConfig {
             mass: file.mass_kg,
             motors,
             wheels,
+            servos,
             imu_name: file.imu,
         })
     }

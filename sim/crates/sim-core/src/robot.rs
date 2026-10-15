@@ -44,6 +44,28 @@ pub struct MotorConfig {
     pub load: Load,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ServoKind {
+    /// Holds an angle across its range; position 0..1 maps to the ends of the range.
+    Positional,
+    /// Continuous rotation: the SDK's power -1..1 sets speed.
+    Continuous,
+    /// goBILDA RGB Indicator Light: the servo position selects a color.
+    RgbIndicator,
+}
+
+#[derive(Clone, Debug)]
+pub struct ServoConfig {
+    pub name: String,
+    pub hub: String,
+    pub port: u8,
+    pub kind: ServoKind,
+    /// Full travel in degrees for positional servos.
+    pub range_deg: f64,
+    /// No-load speed in degrees per second.
+    pub speed_deg_per_s: f64,
+}
+
 #[derive(Clone, Debug)]
 pub struct WheelConfig {
     /// Index into [`RobotConfig::motors`].
@@ -68,6 +90,7 @@ pub struct RobotConfig {
     pub mass: f32,
     pub motors: Vec<MotorConfig>,
     pub wheels: Vec<WheelConfig>,
+    pub servos: Vec<ServoConfig>,
     pub imu_name: String,
 }
 
@@ -98,6 +121,7 @@ impl RobotConfig {
                 wheel(2, -fx, -sz, false, -1.0),
                 wheel(3, -fx, sz, true, 1.0),
             ],
+            servos: Vec::new(),
             imu_name: "imu".into(),
         }
     }

@@ -99,7 +99,7 @@ public final class Main {
                     cmd.out.writeInt(seq);
                     cmd.out.writeByte(manager.state().code);
                     Protocol.writeString(cmd.out, manager.error());
-                    hardware.writeMotorCommands(cmd.out);
+                    hardware.writeOutputs(cmd.out);
                     SimTelemetry telemetry = manager.telemetry();
                     List<String> lines = telemetry == null ? null : telemetry.takePublished();
                     if (lines == null) {

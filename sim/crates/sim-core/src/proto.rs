@@ -10,7 +10,7 @@ use crate::gamepad::GamepadState;
 use crate::hub::{MotorCommand, RunMode, ZeroPower};
 use std::io::{self, Read, Write};
 
-pub const PROTOCOL_VERSION: u16 = 2;
+pub const PROTOCOL_VERSION: u16 = 3;
 
 mod tag {
     pub const HELLO: u8 = 1;
@@ -49,6 +49,8 @@ pub struct Command {
     /// Non-empty when the OpMode failed (uncaught exception, stuck in stop, ...).
     pub error: String,
     pub motors: Vec<MotorCommand>,
+    /// Per servo, in CONFIG order: `(position 0..1 or CR power -1..1, PWM enabled)`.
+    pub servos: Vec<(f64, bool)>,
     /// `Some` when the OpMode called `telemetry.update()` since the last command.
     pub telemetry: Option<Vec<String>>,
 }
@@ -57,6 +59,8 @@ pub struct Command {
 pub enum DeviceKind {
     Motor = 0,
     Imu = 1,
+    Servo = 2,
+    CrServo = 3,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -246,13 +250,19 @@ pub fn read_from_runner(r: &mut impl Read) -> io::Result<FromRunner> {
                 let position_p = d.f32()? as f64;
                 motors.push(MotorCommand { mode, zero_power, power, target, velocity_pidf, position_p });
             }
+            let n = d.u8()?;
+            let mut servos = Vec::with_capacity(n as usize);
+            for _ in 0..n {
+                let value = d.f32()? as f64;
+                servos.push((value, d.u8()? != 0));
+            }
             let telemetry = if d.u8()? == 1 {
                 let n = d.u16()?;
                 Some((0..n).map(|_| d.str()).collect::<io::Result<Vec<_>>>()?)
             } else {
                 None
             };
-            Ok(FromRunner::Command(Command { seq, state, error, motors, telemetry }))
+            Ok(FromRunner::Command(Command { seq, state, error, motors, servos, telemetry }))
         }
         t => Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown message type {t}"))),
     }

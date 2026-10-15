@@ -100,6 +100,13 @@ impl Link {
                 max_rpm: m.spec.free_speed_rpm as f32,
             })
             .collect();
+        devices.extend(world.config.servos.iter().map(|s| DeviceInfo {
+            kind: if s.kind == crate::robot::ServoKind::Continuous { DeviceKind::CrServo } else { DeviceKind::Servo },
+            name: s.name.clone(),
+            port: s.port,
+            ticks_per_rev: 0.0,
+            max_rpm: 0.0,
+        }));
         devices.push(DeviceInfo { kind: DeviceKind::Imu, name: world.config.imu_name.clone(), port: 0, ticks_per_rev: 0.0, max_rpm: 0.0 });
         proto::write_config(&mut writer, &world.config.name, &devices)?;
         self.opmodes = opmodes;
@@ -139,6 +146,10 @@ impl Link {
             Ok(cmd) => {
                 for (m, c) in world.motors.iter_mut().zip(&cmd.motors) {
                     m.channel.cmd = *c;
+                }
+                for (s, &(value, enabled)) in world.servos.iter_mut().zip(&cmd.servos) {
+                    s.command = value;
+                    s.enabled = enabled;
                 }
                 if let Some(t) = &cmd.telemetry {
                     self.telemetry = t.clone();
