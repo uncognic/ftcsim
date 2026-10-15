@@ -30,5 +30,20 @@ public interface DcMotorEx extends DcMotor {
 
     void setTargetPositionTolerance(int tolerance);
 
+    /** Sets the hub's gains for RUN_USING_ENCODER (velocity) or RUN_TO_POSITION (position, P only). */
+    void setPIDFCoefficients(RunMode mode, PIDFCoefficients pidfCoefficients) throws UnsupportedOperationException;
+
+    void setVelocityPIDFCoefficients(double p, double i, double d, double f);
+
+    void setPositionPIDFCoefficients(double p);
+
+    PIDFCoefficients getPIDFCoefficients(RunMode mode);
+
+    @Deprecated
+    void setPIDCoefficients(RunMode mode, PIDCoefficients pidCoefficients);
+
+    @Deprecated
+    PIDCoefficients getPIDCoefficients(RunMode mode);
+
     int getTargetPositionTolerance();
 }

@@ -567,6 +567,22 @@ mod tests {
         }
     }
 
+    #[test]
+    fn run_using_encoder_holds_half_speed_with_default_gains() {
+        let mut w = world();
+        run(&mut w, 0.3);
+        for (i, m) in w.motors.iter_mut().enumerate() {
+            let power = if i % 2 == 0 { -0.5 } else { 0.5 };
+            m.channel.cmd = MotorCommand { mode: RunMode::UsingEncoder, power, ..Default::default() };
+        }
+        run(&mut w, 2.0);
+        let max = crate::motor::MotorSpec::GOBILDA_312.max_ticks_per_sec();
+        for i in 0..4 {
+            let (_, v) = w.encoder(i);
+            assert!((v.abs() / max - 0.5).abs() < 0.05, "motor {i} at {:.0} ticks/s, wanted {:.0}", v.abs(), max * 0.5);
+        }
+    }
+
     struct MotorSpec312;
     impl MotorSpec312 {
         fn free_surface_speed() -> f32 {

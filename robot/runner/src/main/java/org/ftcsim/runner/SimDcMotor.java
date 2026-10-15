@@ -2,6 +2,8 @@ package org.ftcsim.runner;
 
 import com.qualcomm.robotcore.exception.TargetPositionNotSetException;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDCoefficients;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.Range;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -29,6 +31,9 @@ final class SimDcMotor implements DcMotorEx {
     private volatile int tolerance;
     private volatile boolean enabled;
     private volatile double currentAlert;
+    // Hub defaults. Like the real hub, these persist across OpModes until the robot restarts.
+    private volatile PIDFCoefficients velocityPidf = new PIDFCoefficients(10, 3, 0, 0);
+    private volatile double positionP = 10;
 
     // Latest readings from the simulator, in the motor's raw direction.
     volatile int rawPosition;
@@ -73,6 +78,12 @@ final class SimDcMotor implements DcMotorEx {
         out.writeByte(zeroPowerBehavior == ZeroPowerBehavior.FLOAT ? 1 : 0);
         out.writeFloat(live ? (float) (power * sign()) : 0f);
         out.writeInt(target * sign());
+        PIDFCoefficients v = velocityPidf;
+        out.writeFloat((float) v.p);
+        out.writeFloat((float) v.i);
+        out.writeFloat((float) v.d);
+        out.writeFloat((float) v.f);
+        out.writeFloat((float) positionP);
     }
 
     @Override
@@ -237,6 +248,49 @@ final class SimDcMotor implements DcMotorEx {
     @Override
     public int getTargetPositionTolerance() {
         return tolerance;
+    }
+
+    @Override
+    public void setPIDFCoefficients(RunMode mode, PIDFCoefficients pidfCoefficients) {
+        SimBus.transaction(1);
+        mode = mode.migrate();
+        if (mode == RunMode.RUN_USING_ENCODER) {
+            velocityPidf = new PIDFCoefficients(pidfCoefficients);
+        } else if (mode == RunMode.RUN_TO_POSITION) {
+            positionP = pidfCoefficients.p;
+        } else {
+            throw new IllegalArgumentException("PIDF coefficients can only be set for RUN_USING_ENCODER or RUN_TO_POSITION, not " + mode);
+        }
+    }
+
+    @Override
+    public void setVelocityPIDFCoefficients(double p, double i, double d, double f) {
+        setPIDFCoefficients(RunMode.RUN_USING_ENCODER, new PIDFCoefficients(p, i, d, f));
+    }
+
+    @Override
+    public void setPositionPIDFCoefficients(double p) {
+        setPIDFCoefficients(RunMode.RUN_TO_POSITION, new PIDFCoefficients(p, 0, 0, 0));
+    }
+
+    @Override
+    public PIDFCoefficients getPIDFCoefficients(RunMode mode) {
+        mode = mode.migrate();
+        if (mode == RunMode.RUN_TO_POSITION) return new PIDFCoefficients(positionP, 0, 0, 0);
+        return new PIDFCoefficients(velocityPidf);
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void setPIDCoefficients(RunMode mode, PIDCoefficients pidCoefficients) {
+        setPIDFCoefficients(mode, new PIDFCoefficients(pidCoefficients));
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public PIDCoefficients getPIDCoefficients(RunMode mode) {
+        PIDFCoefficients c = getPIDFCoefficients(mode);
+        return new PIDCoefficients(c.p, c.i, c.d);
     }
 
     @Override

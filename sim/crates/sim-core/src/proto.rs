@@ -10,7 +10,7 @@ use crate::gamepad::GamepadState;
 use crate::hub::{MotorCommand, RunMode, ZeroPower};
 use std::io::{self, Read, Write};
 
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 
 mod tag {
     pub const HELLO: u8 = 1;
@@ -242,7 +242,9 @@ pub fn read_from_runner(r: &mut impl Read) -> io::Result<FromRunner> {
                 let zero_power = ZeroPower::from_u8(d.u8()?);
                 let power = d.f32()? as f64;
                 let target = d.i32()?;
-                motors.push(MotorCommand { mode, zero_power, power, target });
+                let velocity_pidf = [d.f32()? as f64, d.f32()? as f64, d.f32()? as f64, d.f32()? as f64];
+                let position_p = d.f32()? as f64;
+                motors.push(MotorCommand { mode, zero_power, power, target, velocity_pidf, position_p });
             }
             let telemetry = if d.u8()? == 1 {
                 let n = d.u16()?;
