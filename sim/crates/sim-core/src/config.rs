@@ -134,15 +134,16 @@ struct Drivetrain {
     front_right: String,
     back_left: String,
     back_right: String,
-    /// Left motors face the other way, so positive power drives them backward (the usual build).
-    #[serde(default = "yes")]
-    left_motors_mirrored: bool,
+    /// Which side's motors face the other way, so positive power drives those wheels backward:
+    /// "left" (the usual build, so the left motors get REVERSE in code), "right", or "none".
+    #[serde(default = "default_mirrored_side")]
+    mirrored_side: String,
     #[serde(default = "default_friction")]
     wheel_friction: f64,
 }
 
-fn yes() -> bool {
-    true
+fn default_mirrored_side() -> String {
+    "left".into()
 }
 
 fn default_friction() -> f64 {
@@ -295,7 +296,12 @@ impl RobotConfig {
         };
         let (fx, sz) = (d.wheelbase_in * INCH / 2.0, d.track_width_in * INCH / 2.0);
         let radius = d.wheel_diameter_mm / 2000.0;
-        let left_sign = if d.left_motors_mirrored { -1.0 } else { 1.0 };
+        let (left_sign, right_sign) = match d.mirrored_side.as_str() {
+            "left" => (-1.0, 1.0),
+            "right" => (1.0, -1.0),
+            "none" => (1.0, 1.0),
+            other => return Err(format!("drivetrain: mirrored_side must be \"left\", \"right\" or \"none\", not \"{other}\"")),
+        };
         let wheel = |motor, x: f32, z: f32, rollers_right, mount_sign| WheelConfig {
             motor,
             position: [x, 0.0, z],
@@ -310,9 +316,9 @@ impl RobotConfig {
         };
         let wheels = vec![
             wheel(find(&d.front_left)?, fx, -sz, true, left_sign),
-            wheel(find(&d.front_right)?, fx, sz, false, 1.0),
+            wheel(find(&d.front_right)?, fx, sz, false, right_sign),
             wheel(find(&d.back_left)?, -fx, -sz, false, left_sign),
-            wheel(find(&d.back_right)?, -fx, sz, true, 1.0),
+            wheel(find(&d.back_right)?, -fx, sz, true, right_sign),
         ];
 
         Ok(Self {
@@ -350,6 +356,14 @@ mod tests {
                 assert!((a.position[k] - b.position[k]).abs() < 1e-4, "{:?} vs {:?}", a.position, b.position);
             }
         }
+    }
+
+    #[test]
+    fn mirrored_side_sets_which_motors_run_backward() {
+        let right = STRAFER.replace("kind = \"mecanum\"", "kind = \"mecanum\"
+mirrored_side = \"right\"");
+        let signs: Vec<f64> = RobotConfig::from_toml(&right).unwrap().wheels.iter().map(|w| w.mount_sign).collect();
+        assert_eq!(signs, vec![1.0, -1.0, 1.0, -1.0]);
     }
 
     #[test]
