@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
  * Frames are {@code u32 length, u8 type, body}; big-endian; strings are {@code u16 length + UTF-8}.
  */
 final class Protocol {
-    static final int VERSION = 3;
+    static final int VERSION = 4;
 
     static final int HELLO = 1;
     static final int COMMAND = 2;
@@ -24,6 +24,7 @@ final class Protocol {
     static final int DEVICE_IMU = 1;
     static final int DEVICE_SERVO = 2;
     static final int DEVICE_CRSERVO = 3;
+    static final int DEVICE_PINPOINT = 4;
 
     static final int CONTROL_INIT = 1;
     static final int CONTROL_START = 2;

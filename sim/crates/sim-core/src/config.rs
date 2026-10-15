@@ -28,7 +28,7 @@
 //! ```
 
 use crate::motor::MotorSpec;
-use crate::robot::{Load, MotorConfig, RobotConfig, ServoConfig, ServoKind, WheelConfig, WheelKind};
+use crate::robot::{Load, MotorConfig, PinpointConfig, RobotConfig, ServoConfig, ServoKind, WheelConfig, WheelKind};
 use crate::units::INCH;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -50,7 +50,32 @@ struct File {
     motors: Vec<Motor>,
     #[serde(default)]
     servos: Vec<Servo>,
+    #[serde(default)]
+    pinpoints: Vec<Pinpoint>,
 }
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Pinpoint {
+    name: String,
+    #[serde(default = "default_hub")]
+    hub: String,
+    #[serde(default)]
+    i2c_bus: u8,
+    x_pod_left_mm: f64,
+    y_pod_forward_mm: f64,
+    /// "4-bar" or "swingarm" (goBILDA pods), or give ticks_per_mm.
+    pods: Option<String>,
+    ticks_per_mm: Option<f64>,
+    #[serde(default)]
+    x_pod_reversed: bool,
+    #[serde(default)]
+    y_pod_reversed: bool,
+}
+
+/// goBILDA's published resolutions.
+const FOUR_BAR_POD_TICKS_PER_MM: f64 = 19.89436789;
+const SWINGARM_POD_TICKS_PER_MM: f64 = 13.26291192;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -181,6 +206,17 @@ impl RobotConfig {
     pub fn from_toml(text: &str) -> Result<Self, String> {
         let file: File = toml::from_str(text).map_err(|e| e.to_string())?;
 
+        let mut names = HashSet::new();
+        let all_names = file.motors.iter().map(|m| &m.name)
+            .chain(file.servos.iter().map(|s| &s.name))
+            .chain(file.pinpoints.iter().map(|p| &p.name))
+            .chain(std::iter::once(&file.imu));
+        for name in all_names {
+            if !names.insert(name.as_str()) {
+                return Err(format!("two devices are named \"{name}\""));
+            }
+        }
+
         let mut ports = HashSet::new();
         let mut motors = Vec::new();
         for m in &file.motors {
@@ -191,9 +227,6 @@ impl RobotConfig {
             }
             if !ports.insert((m.hub.clone(), m.port)) {
                 return Err(format!("motor \"{}\": {} port {} is already used", m.name, m.hub, m.port));
-            }
-            if motors.iter().any(|x: &MotorConfig| x.name == m.name) {
-                return Err(format!("two devices are named \"{}\"", m.name));
             }
             let load = match &m.load {
                 Some(l) => l.to_load(&m.name)?,
@@ -217,9 +250,6 @@ impl RobotConfig {
             if !servo_ports.insert((s.hub.clone(), s.port)) {
                 return Err(format!("servo \"{}\": {} servo port {} is already used", s.name, s.hub, s.port));
             }
-            if motors.iter().any(|m| m.name == s.name) || servos.iter().any(|x: &ServoConfig| x.name == s.name) {
-                return Err(format!("two devices are named \"{}\"", s.name));
-            }
             servos.push(ServoConfig {
                 name: s.name.clone(),
                 hub: s.hub.clone(),
@@ -227,6 +257,26 @@ impl RobotConfig {
                 kind,
                 range_deg: s.range_deg,
                 speed_deg_per_s: s.speed_deg_per_s,
+            });
+        }
+
+        let mut pinpoints = Vec::new();
+        for p in &file.pinpoints {
+            let ticks_per_mm = match (p.pods.as_deref(), p.ticks_per_mm) {
+                (Some("4-bar"), None) => FOUR_BAR_POD_TICKS_PER_MM,
+                (Some("swingarm"), None) => SWINGARM_POD_TICKS_PER_MM,
+                (None, Some(t)) if t > 0.0 => t,
+                _ => return Err(format!("pinpoint \"{}\": give pods = \"4-bar\" or \"swingarm\", or a positive ticks_per_mm", p.name)),
+            };
+            pinpoints.push(PinpointConfig {
+                name: p.name.clone(),
+                hub: p.hub.clone(),
+                i2c_bus: p.i2c_bus,
+                x_pod_left_mm: p.x_pod_left_mm,
+                y_pod_forward_mm: p.y_pod_forward_mm,
+                ticks_per_mm,
+                x_pod_reversed: p.x_pod_reversed,
+                y_pod_reversed: p.y_pod_reversed,
             });
         }
 
@@ -265,6 +315,7 @@ impl RobotConfig {
             motors,
             wheels,
             servos,
+            pinpoints,
             imu_name: file.imu,
         })
     }
@@ -289,6 +340,12 @@ mod tests {
                 assert!((a.position[k] - b.position[k]).abs() < 1e-4, "{:?} vs {:?}", a.position, b.position);
             }
         }
+    }
+
+    #[test]
+    fn rejects_duplicate_device_names_across_kinds() {
+        let dup = format!("{STRAFER}\n[[servos]]\nname = \"odo\"\nport = 0\n");
+        assert!(RobotConfig::from_toml(&dup).unwrap_err().contains("two devices are named \"odo\""));
     }
 
     #[test]

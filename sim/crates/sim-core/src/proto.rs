@@ -10,7 +10,7 @@ use crate::gamepad::GamepadState;
 use crate::hub::{MotorCommand, RunMode, ZeroPower};
 use std::io::{self, Read, Write};
 
-pub const PROTOCOL_VERSION: u16 = 3;
+pub const PROTOCOL_VERSION: u16 = 4;
 
 mod tag {
     pub const HELLO: u8 = 1;
@@ -61,6 +61,7 @@ pub enum DeviceKind {
     Imu = 1,
     Servo = 2,
     CrServo = 3,
+    Pinpoint = 4,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -90,6 +91,18 @@ pub struct State {
     /// yaw, pitch, roll (rad), then x/y/z rates (rad/s) in FTC robot axes.
     pub imu: [f32; 6],
     pub gamepads: [GamepadState; 2],
+    /// Per Pinpoint, in CONFIG order.
+    pub pinpoints: Vec<PinpointReading>,
+}
+
+/// Raw sensor values a Pinpoint chip reads: pod encoder counts and its gyro.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PinpointReading {
+    pub x_ticks: i32,
+    pub y_ticks: i32,
+    /// Radians, counterclockwise, unwrapped.
+    pub heading: f32,
+    pub heading_rate: f32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -193,6 +206,13 @@ pub fn write_state(w: &mut impl Write, s: &State) -> io::Result<()> {
     }
     for g in &s.gamepads {
         e.gamepad(g);
+    }
+    e.u8(s.pinpoints.len() as u8);
+    for p in &s.pinpoints {
+        e.i32(p.x_ticks);
+        e.i32(p.y_ticks);
+        e.f32(p.heading);
+        e.f32(p.heading_rate);
     }
     write_frame(w, tag::STATE, e)
 }

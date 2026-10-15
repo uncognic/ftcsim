@@ -87,7 +87,7 @@ public final class Main {
                 } else if (frame.type == Protocol.STATE) {
                     int seq = frame.body.readInt();
                     double time = frame.body.readDouble();
-                    hardware.applyState(frame.body);
+                    hardware.applyState(frame.body, time);
                     SimBus.onTick(time);
                     if (!SimBus.awaitParked(PARK_TIMEOUT_MS) && ++overruns % 200 == 1) {
                         System.err.println("[runner] the OpMode ran a whole tick without a hardware call; "

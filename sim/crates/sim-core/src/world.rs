@@ -82,6 +82,27 @@ pub struct ServoState {
     pub angle_deg: f64,
 }
 
+/// What a Pinpoint's sensors see: raw pod counts and its own gyro's accumulated heading.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PinpointSensors {
+    /// Pod travel in millimeters (unsigned by wiring; the config's reversal is applied in ticks()).
+    pub x_pod_mm: f64,
+    pub y_pod_mm: f64,
+    /// Heading in radians, counterclockwise, not wrapped (a gyro integrates).
+    pub heading: f64,
+    pub heading_rate: f64,
+}
+
+impl PinpointSensors {
+    pub fn ticks(&self, cfg: &crate::robot::PinpointConfig) -> (i32, i32) {
+        let sign = |reversed: bool| if reversed { -1.0 } else { 1.0 };
+        (
+            (self.x_pod_mm * cfg.ticks_per_mm * sign(cfg.x_pod_reversed)).round() as i32,
+            (self.y_pod_mm * cfg.ticks_per_mm * sign(cfg.y_pod_reversed)).round() as i32,
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Battery {
     pub open_circuit: f64,
@@ -172,6 +193,7 @@ pub struct SimWorld {
     pub wheels: Vec<WheelState>,
     pub motors: Vec<MotorState>,
     pub servos: Vec<ServoState>,
+    pub pinpoints: Vec<PinpointSensors>,
     pub battery: Battery,
     pub gamepads: [GamepadState; 2],
     pub pieces: Vec<GamePiece>,
@@ -189,6 +211,7 @@ impl SimWorld {
             wheels: vec![WheelState::default(); config.wheels.len()],
             motors: vec![MotorState::default(); config.motors.len()],
             servos: vec![ServoState { position: 0.5, ..Default::default() }; config.servos.len()],
+            pinpoints: vec![PinpointSensors::default(); config.pinpoints.len()],
             config,
             battery: Battery::default(),
             gamepads: [GamepadState::default(); 2],
@@ -308,6 +331,34 @@ impl SimWorld {
 
         self.physics.step();
         self.time += dt;
+        self.step_odometry(dt);
+    }
+
+    /// Dead-wheel pods roll with the chassis (they are sprung to the floor and do not slip),
+    /// so they measure the true motion of the points where they are mounted.
+    fn step_odometry(&mut self, dt: f64) {
+        if self.pinpoints.is_empty() {
+            return;
+        }
+        let body = &self.physics.bodies[self.chassis];
+        let iso = *body.position();
+        let com = *body.center_of_mass();
+        let (linvel, angvel) = (*body.linvel(), *body.angvel());
+        let up = iso.rotation * vector![0.0, 1.0, 0.0];
+        let fwd = iso.rotation * vector![1.0, 0.0, 0.0];
+        let left = iso.rotation * vector![0.0, 0.0, -1.0];
+        let yaw_rate = angvel.dot(&up) as f64;
+        for (s, cfg) in self.pinpoints.iter_mut().zip(&self.config.pinpoints) {
+            // Robot frame here is +X forward, +Z right, so "left" is -Z.
+            let x_pod = iso * point![0.0, 0.0, -(cfg.x_pod_left_mm / 1000.0) as f32];
+            let y_pod = iso * point![(cfg.y_pod_forward_mm / 1000.0) as f32, 0.0, 0.0];
+            let v_x = linvel + angvel.cross(&(x_pod - com));
+            let v_y = linvel + angvel.cross(&(y_pod - com));
+            s.x_pod_mm += v_x.dot(&fwd) as f64 * dt * 1000.0;
+            s.y_pod_mm += v_y.dot(&left) as f64 * dt * 1000.0;
+            s.heading += yaw_rate * dt;
+            s.heading_rate = yaw_rate;
+        }
     }
 
     /// Solves each wheel's spin together with its tire force; returns forces to apply to the chassis.
@@ -648,6 +699,36 @@ mod tests {
         assert!((w.servos[0].position - 0.7).abs() < 0.01, "at {}", w.servos[0].position);
         run(&mut w, 1.0);
         assert!((w.servos[0].position - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn pinpoint_pods_measure_motion_at_their_mounting_points() {
+        let text = include_str!("../../../../robots/strafer.toml");
+        let mut w = SimWorld::new(RobotConfig::from_toml(text).unwrap(), Pose2d::new(0.0, -1.2, std::f32::consts::FRAC_PI_2));
+        assert_eq!(w.config.pinpoints[0].x_pod_left_mm, -84.0);
+        run(&mut w, 0.3);
+        let start = w.pinpoints[0];
+        set_raw(&mut w, [-0.5, 0.5, -0.5, 0.5]); // forward
+        run(&mut w, 1.0);
+        set_raw(&mut w, [0.0; 4]);
+        run(&mut w, 0.5);
+        let moved_mm = (w.pose().y + 1.2) as f64 * 1000.0;
+        let s = w.pinpoints[0];
+        assert!((s.x_pod_mm - start.x_pod_mm - moved_mm).abs() < 2.0, "x pod {} vs moved {moved_mm}", s.x_pod_mm);
+        assert!((s.y_pod_mm - start.y_pod_mm).abs() < 2.0, "y pod should not see forward motion: {}", s.y_pod_mm);
+
+        // Spin in place: the X pod, 84 mm right of center, rolls forward 84 mm per radian of CCW turn.
+        let (x0, h0) = (s.x_pod_mm, s.heading);
+        set_raw(&mut w, [0.4, 0.4, 0.4, 0.4]); // mirrored left wheels go backward: counterclockwise
+        run(&mut w, 0.5);
+        set_raw(&mut w, [0.0; 4]);
+        run(&mut w, 0.5);
+        let s = w.pinpoints[0];
+        let turned = s.heading - h0;
+        assert!(turned > 0.3, "should have turned counterclockwise, turned {turned}");
+        let expected = 84.0 * turned;
+        let translation = (w.pose().y + 1.2) as f64 * 1000.0 - moved_mm; // spinning drifts a little
+        assert!((s.x_pod_mm - x0 - expected - translation).abs() < 15.0, "x pod {} expected {expected}", s.x_pod_mm - x0);
     }
 
     #[test]

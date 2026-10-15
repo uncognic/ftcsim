@@ -1,8 +1,8 @@
 package org.ftcsim.runner;
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareDevice;
-import com.qualcomm.robotcore.hardware.HardwareMap;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -12,10 +12,11 @@ import java.util.List;
 /** The robot's hardware as described by the simulator's CONFIG message, plus gamepads. */
 final class SimHardware {
     final String robotName;
-    final HardwareMap hardwareMap = new HardwareMap();
+    final SimHardwareMap hardwareMap = new SimHardwareMap();
     final List<SimDcMotor> motors = new ArrayList<>();
     /** SimServo or SimCRServo, in CONFIG order. */
     final List<Object> servos = new ArrayList<>();
+    final List<SimPinpointChip> pinpoints = new ArrayList<>();
     final SimVoltageSensor voltageSensor = new SimVoltageSensor();
     final Gamepad gamepad1 = new Gamepad();
     final Gamepad gamepad2 = new Gamepad();
@@ -48,6 +49,12 @@ final class SimHardware {
                 SimCRServo servo = new SimCRServo(name, port, this);
                 servos.add(servo);
                 hardwareMap.put(name, servo);
+            } else if (kind == Protocol.DEVICE_PINPOINT) {
+                // Configured as the SDK's built-in Pinpoint type, like on the Driver Station.
+                SimPinpointChip chip = new SimPinpointChip(name, port);
+                pinpoints.add(chip);
+                hardwareMap.putI2c(name, chip);
+                hardwareMap.put(name, new GoBildaPinpointDriver(chip, true));
             } else if (kind == Protocol.DEVICE_IMU) {
                 imu = new SimImu(name);
                 hardwareMap.put(name, imu);
@@ -72,7 +79,7 @@ final class SimHardware {
     }
 
     /** Applies a STATE message body (after the seq and time fields) to the devices. */
-    void applyState(DataInputStream in) throws IOException {
+    void applyState(DataInputStream in, double time) throws IOException {
         voltageSensor.voltage = in.readFloat();
         int count = in.readUnsignedByte();
         for (int i = 0; i < count; i++) {
@@ -98,6 +105,12 @@ final class SimHardware {
         }
         readGamepad(in, gamepad1);
         readGamepad(in, gamepad2);
+        int pinpointCount = in.readUnsignedByte();
+        for (int i = 0; i < pinpointCount; i++) {
+            int xTicks = in.readInt(), yTicks = in.readInt();
+            float heading = in.readFloat(), headingRate = in.readFloat();
+            if (i < pinpoints.size()) pinpoints.get(i).onSample(xTicks, yTicks, heading, headingRate, time);
+        }
     }
 
     /** Motor commands, then servo outputs, in CONFIG order. */

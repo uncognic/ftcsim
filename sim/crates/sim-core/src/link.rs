@@ -1,6 +1,6 @@
 //! TCP link to the Java runner, plus the glue that turns world state into protocol messages.
 
-use crate::proto::{self, Command, Control, DeviceInfo, DeviceKind, FromRunner, MotorReading, OpModeInfo, State};
+use crate::proto::{self, Command, Control, DeviceInfo, DeviceKind, FromRunner, MotorReading, OpModeInfo, PinpointReading, State};
 use crate::world::SimWorld;
 use std::io::{self, BufReader, BufWriter};
 use std::net::{TcpListener, TcpStream};
@@ -107,6 +107,13 @@ impl Link {
             ticks_per_rev: 0.0,
             max_rpm: 0.0,
         }));
+        devices.extend(world.config.pinpoints.iter().map(|p| DeviceInfo {
+            kind: DeviceKind::Pinpoint,
+            name: p.name.clone(),
+            port: p.i2c_bus,
+            ticks_per_rev: 0.0,
+            max_rpm: 0.0,
+        }));
         devices.push(DeviceInfo { kind: DeviceKind::Imu, name: world.config.imu_name.clone(), port: 0, ticks_per_rev: 0.0, max_rpm: 0.0 });
         proto::write_config(&mut writer, &world.config.name, &devices)?;
         self.opmodes = opmodes;
@@ -182,5 +189,14 @@ fn snapshot(world: &SimWorld, seq: u32) -> State {
             .collect(),
         imu: [imu.yaw, imu.pitch, imu.roll, imu.rate_x, imu.rate_y, imu.rate_z],
         gamepads: world.gamepads,
+        pinpoints: world
+            .pinpoints
+            .iter()
+            .zip(&world.config.pinpoints)
+            .map(|(s, cfg)| {
+                let (x_ticks, y_ticks) = s.ticks(cfg);
+                PinpointReading { x_ticks, y_ticks, heading: s.heading as f32, heading_rate: s.heading_rate as f32 }
+            })
+            .collect(),
     }
 }

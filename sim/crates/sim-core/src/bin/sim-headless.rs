@@ -94,7 +94,11 @@ fn main() {
             );
             next_report += 1.0;
         }
-        if !link.connected() || (link.last.state == OpModeState::Stopped && t > 0.1) {
+        if !link.connected() {
+            eprintln!("{}", link.status);
+            break;
+        }
+        if link.last.state == OpModeState::Stopped && t > 0.1 {
             break;
         }
     }

@@ -36,3 +36,11 @@ port = 2
 name = "backRight"
 type = "gobilda-312"
 port = 3
+
+# goBILDA Pinpoint with 4-bar pods. Offsets are goBILDA's reference placement:
+# X pod 84 mm right of center, Y pod 168 mm behind center.
+[[pinpoints]]
+name = "odo"
+x_pod_left_mm = -84
+y_pod_forward_mm = -168
+pods = "4-bar"

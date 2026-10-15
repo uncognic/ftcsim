@@ -66,6 +66,23 @@ pub struct ServoConfig {
     pub speed_deg_per_s: f64,
 }
 
+/// A goBILDA Pinpoint and the two dead-wheel pods plugged into it, as physically mounted.
+#[derive(Clone, Debug)]
+pub struct PinpointConfig {
+    pub name: String,
+    pub hub: String,
+    pub i2c_bus: u8,
+    /// Where the X (forward-measuring) pod really is: millimeters left of the robot's center.
+    pub x_pod_left_mm: f64,
+    /// Where the Y (sideways-measuring) pod really is: millimeters forward of the robot's center.
+    pub y_pod_forward_mm: f64,
+    /// Encoder ticks per millimeter of pod travel.
+    pub ticks_per_mm: f64,
+    /// Pods wired so they count down when the robot moves forward / left.
+    pub x_pod_reversed: bool,
+    pub y_pod_reversed: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct WheelConfig {
     /// Index into [`RobotConfig::motors`].
@@ -91,6 +108,7 @@ pub struct RobotConfig {
     pub motors: Vec<MotorConfig>,
     pub wheels: Vec<WheelConfig>,
     pub servos: Vec<ServoConfig>,
+    pub pinpoints: Vec<PinpointConfig>,
     pub imu_name: String,
 }
 
@@ -122,6 +140,7 @@ impl RobotConfig {
                 wheel(3, -fx, sz, true, 1.0),
             ],
             servos: Vec::new(),
+            pinpoints: Vec::new(),
             imu_name: "imu".into(),
         }
     }
