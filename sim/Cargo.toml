@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = ["crates/sim-core"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+
+[workspace.dependencies]
+# Pinned on purpose. Upgrade these in their own change, not alongside features.
+rapier3d = "=0.23.1"
+
+# Physics needs to be fast even in debug builds; our own code stays debuggable.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

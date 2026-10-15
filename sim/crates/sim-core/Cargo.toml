@@ -1,0 +1,9 @@
+[package]
+name = "sim-core"
+description = "Headless FTC robot physics: field, motors, wheels, hub firmware, and the runner protocol."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rapier3d.workspace = true
