@@ -13,3 +13,6 @@ pub mod hub;
 pub mod motor;
 pub mod robot;
 pub mod units;
+pub mod world;
+
+pub use world::{Pose2d, SimWorld};
