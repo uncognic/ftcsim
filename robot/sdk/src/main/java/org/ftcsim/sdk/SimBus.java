@@ -51,8 +51,17 @@ public final class SimBus {
     /** Only touched by the OpMode thread. */
     private static int clockReads;
 
+    /** Threads of OpModes that have been stopped. */
+    private static final java.util.Set<Thread> stoppedThreads = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
+    /** From now on, hardware calls from {@code thread} throw {@link OpModeStoppedException}. */
+    public static void markStopped(Thread thread) {
+        stoppedThreads.add(thread);
+    }
+
     /** One hardware call by the current thread. Only the OpMode thread is charged. */
     public static void transaction(int cost) {
+        if (!stoppedThreads.isEmpty() && stoppedThreads.contains(Thread.currentThread())) throw new OpModeStoppedException();
         if (!attached || Thread.currentThread() != userThread) return;
         synchronized (lock) {
             try {

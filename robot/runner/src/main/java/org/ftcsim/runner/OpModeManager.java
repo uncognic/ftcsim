@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpModeInternals;
 import java.util.List;
+import org.ftcsim.sdk.OpModeStoppedException;
 import org.ftcsim.sdk.SimBus;
 
 /** Runs one OpMode at a time on its own thread, following INIT / START / STOP from the Driver Station. */
@@ -93,6 +94,7 @@ final class OpModeManager {
         hardware.disableOutputs();
         Thread t = thread;
         if (t != null && t.isAlive()) {
+            SimBus.markStopped(t);
             t.interrupt();
             try {
                 t.join(STOP_TIMEOUT_MS);
@@ -124,8 +126,8 @@ final class OpModeManager {
             } else {
                 runIterative(opMode);
             }
-        } catch (InterruptedException e) {
-            // STOP pressed while the OpMode was waiting: normal exit.
+        } catch (InterruptedException | OpModeStoppedException e) {
+            // STOP pressed while the OpMode was waiting or using hardware: normal exit.
         } catch (Throwable t) {
             if (!(t.getCause() instanceof InterruptedException)) {
                 error = describe(t);
