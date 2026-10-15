@@ -1,0 +1,8 @@
+plugins { id 'application' }
+dependencies {
+    implementation project(':sdk')
+    runtimeOnly project(':TeamCode')
+}
+tasks.withType(JavaCompile).configureEach { options.release = 17 }
+application { mainClass = 'org.ftcsim.runner.Main' }
+tasks.named('run') { standardInput = System.in }
