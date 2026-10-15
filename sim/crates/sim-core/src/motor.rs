@@ -44,15 +44,20 @@ impl MotorSpec {
     pub const GOBILDA_435: Self = Self::gobilda_5203("goBILDA 5203 435 RPM", 435.0, 18.7, 384.5, 13.7);
     pub const GOBILDA_1150: Self = Self::gobilda_5203("goBILDA 5203 1150 RPM", 1150.0, 7.9, 145.1, 5.2);
 
-    pub const ALL: [Self; 5] = [Self::GOBILDA_117, Self::GOBILDA_223, Self::GOBILDA_312, Self::GOBILDA_435, Self::GOBILDA_1150];
+    /// No gearbox: the usual flywheel motor. 28 encoder counts per revolution.
+    pub const GOBILDA_6000: Self = Self::gobilda_5203("goBILDA 5203 6000 RPM (1:1)", 6000.0, 1.47, 28.0, 1.0);
+
+    pub const ALL: [Self; 6] =
+        [Self::GOBILDA_117, Self::GOBILDA_223, Self::GOBILDA_312, Self::GOBILDA_435, Self::GOBILDA_1150, Self::GOBILDA_6000];
 
     /// Config-file names, e.g. "gobilda-312".
-    const NAMES: [(&'static str, Self); 5] = [
+    const NAMES: [(&'static str, Self); 6] = [
         ("gobilda-117", Self::GOBILDA_117),
         ("gobilda-223", Self::GOBILDA_223),
         ("gobilda-312", Self::GOBILDA_312),
         ("gobilda-435", Self::GOBILDA_435),
         ("gobilda-1150", Self::GOBILDA_1150),
+        ("gobilda-6000", Self::GOBILDA_6000),
     ];
 
     pub fn by_name(name: &str) -> Option<Self> {

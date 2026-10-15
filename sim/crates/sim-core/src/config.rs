@@ -28,7 +28,7 @@
 //! ```
 
 use crate::motor::MotorSpec;
-use crate::robot::{MotorConfig, RobotConfig, WheelConfig, WheelKind};
+use crate::robot::{Load, MotorConfig, RobotConfig, WheelConfig, WheelKind};
 use crate::units::INCH;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -102,6 +102,40 @@ struct Motor {
     #[serde(default = "default_hub")]
     hub: String,
     port: u8,
+    /// What a mechanism motor turns. Omit for drivetrain motors.
+    load: Option<LoadFile>,
+}
+
+/// Either give `inertia_kg_m2` directly, or a flywheel's mass and diameter (treated as a solid disc).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LoadFile {
+    inertia_kg_m2: Option<f64>,
+    flywheel_mass_kg: Option<f64>,
+    flywheel_diameter_mm: Option<f64>,
+    #[serde(default)]
+    friction_nm: f64,
+    #[serde(default = "one")]
+    gear_ratio: f64,
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+impl LoadFile {
+    fn to_load(&self, motor: &str) -> Result<Load, String> {
+        let inertia = match (self.inertia_kg_m2, self.flywheel_mass_kg, self.flywheel_diameter_mm) {
+            (Some(i), None, None) => i,
+            (None, Some(m), Some(d)) => 0.5 * m * (d / 2000.0).powi(2),
+            (None, None, None) => 0.0,
+            _ => return Err(format!("motor \"{motor}\": give either inertia_kg_m2 or flywheel_mass_kg with flywheel_diameter_mm")),
+        };
+        if self.gear_ratio <= 0.0 {
+            return Err(format!("motor \"{motor}\": gear_ratio must be positive"));
+        }
+        Ok(Load { inertia, friction: self.friction_nm, ratio: self.gear_ratio })
+    }
 }
 
 fn default_hub() -> String {
@@ -131,7 +165,11 @@ impl RobotConfig {
             if motors.iter().any(|x: &MotorConfig| x.name == m.name) {
                 return Err(format!("two devices are named \"{}\"", m.name));
             }
-            motors.push(MotorConfig { name: m.name.clone(), hub: m.hub.clone(), port: m.port, spec });
+            let load = match &m.load {
+                Some(l) => l.to_load(&m.name)?,
+                None => Load::default(),
+            };
+            motors.push(MotorConfig { name: m.name.clone(), hub: m.hub.clone(), port: m.port, spec, load });
         }
 
         let d = &file.drivetrain;

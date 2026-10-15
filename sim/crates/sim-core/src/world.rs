@@ -270,6 +270,8 @@ impl SimWorld {
             if let Some((w, cfg)) = self.wheels.iter().zip(&self.config.wheels).find(|(_, c)| c.motor == i) {
                 m.shaft_omega = cfg.mount_sign * w.omega;
                 m.shaft_angle = cfg.mount_sign * w.angle;
+            } else {
+                step_mechanism(m, spec, &self.config.motors[i].load, drives[i], dt);
             }
             match drives[i] {
                 Drive::Volts(v) => {
@@ -419,6 +421,21 @@ impl SimWorld {
             self.pieces.push(GamePiece { body, radius: RADIUS, color: if i % 3 == 0 { green } else { purple } });
         }
     }
+}
+
+/// A motor turning its own load (flywheel, roller, spool): rotor and load inertia, motor torque,
+/// gearbox and load friction, solved implicitly in the shaft speed.
+fn step_mechanism(m: &mut MotorState, spec: &crate::motor::MotorSpec, load: &crate::robot::Load, drive: Drive, dt: f64) {
+    let (a, b) = match drive {
+        Drive::Volts(v) => spec.torque_coeffs(v),
+        Drive::Float => (0.0, 0.0),
+    };
+    let ratio = load.ratio;
+    let inertia = spec.reflected_inertia + load.inertia / (ratio * ratio);
+    let gearbox_loss = spec.stall_torque * spec.free_current / spec.stall_current;
+    let friction = (gearbox_loss + load.friction / ratio) * (m.shaft_omega / LOSS_SMOOTHING).tanh();
+    m.shaft_omega = (inertia * m.shaft_omega + dt * (a - friction)) / (inertia + dt * (b + BEARING_DRAG));
+    m.shaft_angle += m.shaft_omega * dt;
 }
 
 fn chassis_isometry(pose: Pose2d) -> Isometry<Real> {
@@ -581,6 +598,32 @@ mod tests {
             let (_, v) = w.encoder(i);
             assert!((v.abs() / max - 0.5).abs() < 0.05, "motor {i} at {:.0} ticks/s, wanted {:.0}", v.abs(), max * 0.5);
         }
+    }
+
+    #[test]
+    fn flywheel_reaches_target_velocity_with_team_gains() {
+        // A shooter like team 20761's: bare 6000 RPM motor on a ~0.2 kg, 96 mm flywheel,
+        // tuned with P=340 I=55 D=0 F=2.9 in hub units, asking for 1250 ticks/s.
+        let mut text = include_str!("../../../../robots/strafer.toml").to_string();
+        text.push_str("\n[[motors]]\nname = \"shooter\"\ntype = \"gobilda-6000\"\nhub = \"Expansion Hub 2\"\nport = 0\nload = { flywheel_mass_kg = 0.2, flywheel_diameter_mm = 96, friction_nm = 0.01 }\n");
+        let config = RobotConfig::from_toml(&text).unwrap();
+        let mut w = SimWorld::new(config, Pose2d::new(0.0, -1.2, std::f32::consts::FRAC_PI_2));
+        let max = crate::motor::MotorSpec::GOBILDA_6000.max_ticks_per_sec();
+        w.motors[4].channel.cmd = MotorCommand {
+            mode: RunMode::UsingEncoder,
+            power: 1250.0 / max,
+            velocity_pidf: [340.0, 55.0, 0.0, 2.9],
+            ..Default::default()
+        };
+        let mut peak: f64 = 0.0;
+        for _ in 0..(1.5 * PHYSICS_HZ) as usize {
+            w.step();
+            peak = peak.max(w.encoder(4).1);
+        }
+        let (_, v) = w.encoder(4);
+        assert!((v - 1250.0).abs() < 25.0, "flywheel at {v:.0} ticks/s after 1.5 s");
+        assert!(peak < 1250.0 * 1.25, "overshoot to {peak:.0} ticks/s");
+        assert!(w.pose().y > -1.21 && w.pose().y < -1.19, "a mechanism motor must not move the robot");
     }
 
     struct MotorSpec312;

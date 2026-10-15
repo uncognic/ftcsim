@@ -15,6 +15,23 @@ pub enum WheelKind {
     Omni,
 }
 
+/// What a non-drivetrain motor turns: a flywheel, roller, spool... modelled as inertia plus friction.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Load {
+    /// kg·m² at the load shaft.
+    pub inertia: f64,
+    /// Friction torque at the load shaft, N·m.
+    pub friction: f64,
+    /// Motor turns per load turn (2.0 means the load spins at half the motor's speed).
+    pub ratio: f64,
+}
+
+impl Default for Load {
+    fn default() -> Self {
+        Self { inertia: 0.0, friction: 0.0, ratio: 1.0 }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MotorConfig {
     /// Name used with `hardwareMap.get(...)`.
@@ -23,6 +40,8 @@ pub struct MotorConfig {
     pub hub: String,
     pub port: u8,
     pub spec: MotorSpec,
+    /// Ignored for drivetrain motors, whose load is the robot.
+    pub load: Load,
 }
 
 #[derive(Clone, Debug)]
@@ -55,7 +74,7 @@ pub struct RobotConfig {
 impl RobotConfig {
     /// A typical goBILDA strafer: 312 RPM motors on 104 mm mecanum wheels, left side mirrored.
     pub fn default_mecanum() -> Self {
-        let motor = |name: &str, port| MotorConfig { name: name.into(), hub: "Control Hub".into(), port, spec: MotorSpec::GOBILDA_312 };
+        let motor = |name: &str, port| MotorConfig { name: name.into(), hub: "Control Hub".into(), port, spec: MotorSpec::GOBILDA_312, load: Load::default() };
         let (fx, sz) = (5.9 * INCH, 6.5 * INCH);
         let wheel = |motor, x, z, rollers_right, mount_sign| WheelConfig {
             motor,
