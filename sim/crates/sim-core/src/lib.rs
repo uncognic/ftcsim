@@ -10,7 +10,9 @@
 
 pub mod gamepad;
 pub mod hub;
+pub mod link;
 pub mod motor;
+pub mod proto;
 pub mod robot;
 pub mod units;
 pub mod world;
