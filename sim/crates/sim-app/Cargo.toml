@@ -1,0 +1,14 @@
+[package]
+name = "sim-app"
+description = "Desktop simulator: 3D view, driver station controls, and the runner link."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ftc-sim"
+path = "src/main.rs"
+
+[dependencies]
+sim-core.workspace = true
+bevy.workspace = true

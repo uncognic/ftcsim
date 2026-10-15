@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/sim-core"]
+members = ["crates/sim-core", "crates/sim-app"]
 
 [workspace.package]
 edition = "2021"
@@ -10,6 +10,8 @@ license = "MIT"
 [workspace.dependencies]
 # Pinned on purpose. Upgrade these in their own change, not alongside features.
 rapier3d = "=0.23.1"
+bevy = "=0.16.1"
+sim-core = { path = "crates/sim-core" }
 
 # Physics needs to be fast even in debug builds; our own code stays debuggable.
 [profile.dev]
