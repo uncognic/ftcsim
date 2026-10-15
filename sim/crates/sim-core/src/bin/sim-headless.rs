@@ -1,7 +1,7 @@
 //! Run an OpMode with no window, as fast as the CPU allows, and print what the robot did.
 //!
 //! ```text
-//! sim-headless --opmode "Encoder Square" [--robot robots/strafer.toml] [--seconds 30] [--port 7171]
+//! sim-headless --opmode "Encoder Square" [--robot robots/strafer.toml] [--start x,y,heading] [--seconds 30] [--port 7171]
 //! ```
 //! Start the Java runner separately (`gradlew :runner:run` in `robot/`); it connects here.
 
@@ -9,7 +9,7 @@ use sim_core::link::{Link, DEFAULT_PORT, STEPS_PER_EXCHANGE};
 use sim_core::proto::{Control, OpModeState};
 use sim_core::robot::RobotConfig;
 use sim_core::world::PHYSICS_HZ;
-use sim_core::SimWorld;
+use sim_core::{Pose2d, SimWorld};
 use std::time::{Duration, Instant};
 
 fn main() {
@@ -17,6 +17,7 @@ fn main() {
     let mut seconds = 30.0;
     let mut port = DEFAULT_PORT;
     let mut robot = None;
+    let mut start = SimWorld::default_start();
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -24,8 +25,14 @@ fn main() {
             "--seconds" => seconds = args.next().and_then(|s| s.parse().ok()).unwrap_or(seconds),
             "--port" => port = args.next().and_then(|s| s.parse().ok()).unwrap_or(port),
             "--robot" => robot = args.next(),
+            "--start" => {
+                start = Pose2d::parse_inches_degrees(&args.next().unwrap_or_default()).unwrap_or_else(|e| {
+                    eprintln!("{e}");
+                    std::process::exit(2);
+                })
+            }
             _ => {
-                eprintln!("usage: sim-headless --opmode NAME [--robot FILE] [--seconds S] [--port P]");
+                eprintln!("usage: sim-headless --opmode NAME [--robot FILE] [--start x,y,heading] [--seconds S] [--port P]");
                 std::process::exit(2);
             }
         }
@@ -38,7 +45,7 @@ fn main() {
         }),
         None => RobotConfig::default_mecanum(),
     };
-    let mut world = SimWorld::new(config, SimWorld::default_start());
+    let mut world = SimWorld::new(config, start);
     let mut link = Link::bind(port).unwrap_or_else(|e| {
         eprintln!("cannot listen on port {port}: {e}");
         std::process::exit(1);

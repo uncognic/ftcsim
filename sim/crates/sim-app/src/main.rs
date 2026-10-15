@@ -10,7 +10,7 @@ use sim_core::proto::{Control, Flavor, OpModeState};
 use sim_core::robot::{RobotConfig, WheelKind};
 use sim_core::units::*;
 use sim_core::world::{PHYSICS_HZ, SUSPENSION_REST};
-use sim_core::SimWorld;
+use sim_core::{Pose2d, SimWorld};
 use std::f32::consts::{FRAC_PI_2, PI};
 
 const AUTO_SECONDS: f64 = 30.0;
@@ -21,6 +21,8 @@ struct Sim {
     link: Link,
     steps: u32,
     paused: bool,
+    /// Where R puts the robot back.
+    start: Pose2d,
 }
 
 #[derive(Resource, Default)]
@@ -54,22 +56,23 @@ struct TelemetryText;
 struct StatusText;
 
 fn main() {
-    // ftc-sim [--robot robots/20761.toml]
+    // ftc-sim [--robot robots/20761.toml] [--start x,y,heading]
     let mut args = std::env::args().skip(1);
     let mut config = RobotConfig::default_mecanum();
+    let mut start = SimWorld::default_start();
     while let Some(arg) = args.next() {
-        if arg == "--robot" {
-            let path = args.next().unwrap_or_default();
-            config = RobotConfig::load(std::path::Path::new(&path)).unwrap_or_else(|e| {
-                eprintln!("{e}");
-                std::process::exit(1);
-            });
-        } else {
-            eprintln!("usage: ftc-sim [--robot FILE]");
+        let value = args.next().unwrap_or_default();
+        let result = match arg.as_str() {
+            "--robot" => RobotConfig::load(std::path::Path::new(&value)).map(|c| config = c),
+            "--start" => Pose2d::parse_inches_degrees(&value).map(|p| start = p),
+            _ => Err("usage: ftc-sim [--robot FILE] [--start x,y,heading]".into()),
+        };
+        if let Err(e) = result {
+            eprintln!("{e}");
             std::process::exit(2);
         }
     }
-    let world = SimWorld::new(config, SimWorld::default_start());
+    let world = SimWorld::new(config, start);
     let link = match Link::bind(DEFAULT_PORT) {
         Ok(link) => link,
         Err(e) => {
@@ -86,7 +89,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_hz(PHYSICS_HZ))
         .insert_resource(ClearColor(Color::srgb(0.07, 0.08, 0.09)))
         .insert_resource(AmbientLight { color: Color::WHITE, brightness: 350.0, ..default() })
-        .insert_resource(Sim { world, link, steps: 0, paused: false })
+        .insert_resource(Sim { world, link, steps: 0, paused: false, start })
         .init_resource::<DriverStation>()
         .init_resource::<CameraView>()
         .add_systems(Startup, (setup_scene, setup_hud))
@@ -221,7 +224,8 @@ fn driver_station_keys(
         sim.link.send(Control::Stop);
     }
     if keys.just_pressed(KeyCode::KeyR) && !busy {
-        sim.world.place_robot(SimWorld::default_start());
+        let start = sim.start;
+        sim.world.place_robot(start);
     }
     if keys.just_pressed(KeyCode::KeyP) {
         sim.paused = !sim.paused;

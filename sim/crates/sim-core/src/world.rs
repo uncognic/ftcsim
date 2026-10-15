@@ -47,6 +47,24 @@ impl Pose2d {
     pub fn new(x: f32, y: f32, heading: f32) -> Self {
         Self { x, y, heading }
     }
+
+    /// Parses "x,y,heading" in inches and degrees (FTC field coordinates: origin at the field
+    /// center, +y away from the red wall, heading counterclockwise from +x).
+    pub fn parse_inches_degrees(text: &str) -> Result<Self, String> {
+        let parts: Vec<f32> = text
+            .split(',')
+            .map(|p| p.trim().parse::<f32>())
+            .collect::<Result<_, _>>()
+            .map_err(|_| format!("start pose \"{text}\" should be x,y,heading in inches and degrees, e.g. -36,-63,90"))?;
+        let [x, y, heading] = parts[..] else {
+            return Err(format!("start pose \"{text}\" should have three numbers: x,y,heading"));
+        };
+        let half = FIELD_SIZE / 2.0 / INCH;
+        if x.abs() > half || y.abs() > half {
+            return Err(format!("start pose ({x}, {y}) is outside the field (±{half} in)"));
+        }
+        Ok(Self::new(x * INCH, y * INCH, heading.to_radians()))
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -584,6 +602,15 @@ mod tests {
         for _ in 0..(seconds * PHYSICS_HZ) as usize {
             w.step();
         }
+    }
+
+    #[test]
+    fn parses_start_pose_in_inches_and_degrees() {
+        let p = Pose2d::parse_inches_degrees("-36, -63, 90").unwrap();
+        assert!((p.x / INCH + 36.0).abs() < 1e-4 && (p.y / INCH + 63.0).abs() < 1e-4);
+        assert!((p.heading - std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        assert!(Pose2d::parse_inches_degrees("1,2").is_err());
+        assert!(Pose2d::parse_inches_degrees("100,0,0").is_err());
     }
 
     #[test]
