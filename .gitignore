@@ -1,0 +1,13 @@
+# Rust
+sim/target/
+
+# Gradle / Java
+robot/.gradle/
+robot/build/
+robot/*/build/
+*.class
+
+# IDEs
+.idea/
+.vscode/
+*.iml
