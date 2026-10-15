@@ -1,5 +1,5 @@
 # Rust
-sim/target/
+/target/
 
 # Gradle / Java
 robot/.gradle/

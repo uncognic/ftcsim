@@ -8,7 +8,8 @@ hardware is your code: drive math, field-centric control, PID, odometry. If it w
 should work on the robot, and the other way around.
 
 ```
-ftc-sim/
+ftcsim/
+  Cargo.toml  Rust workspace (open the repo root in VS Code and rust-analyzer finds it)
   sim/      Rust. The simulator.
     crates/sim-core   headless physics, hub firmware, runner protocol (+ sim-headless binary)
     crates/sim-app    the desktop app: 3D view and Driver Station controls (Bevy)
@@ -22,10 +23,9 @@ ftc-sim/
 
 You need Rust (stable) and JDK 21 or newer. Gradle comes with the wrapper.
 
-Terminal 1, the simulator:
+Terminal 1, the simulator (from the repo root):
 
 ```
-cd sim
 cargo run --release -p sim-app
 ```
 
@@ -46,7 +46,6 @@ restart the runner. The simulator can stay open.
 ### Headless, faster than real time
 
 ```
-cd sim
 cargo run --release -p sim-core --bin sim-headless -- --opmode "Encoder Square" --seconds 30
 ```
 
@@ -85,6 +84,6 @@ whatever orientation you pass to `imu.initialize`).
 ## Tests
 
 ```
-cd sim && cargo test
+cargo test
 cd robot && gradlew build
 ```
