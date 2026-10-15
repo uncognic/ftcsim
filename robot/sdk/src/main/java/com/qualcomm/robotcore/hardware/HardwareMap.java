@@ -12,6 +12,8 @@ import java.util.Set;
 /** Devices from the active robot configuration, looked up by the names given in that configuration. */
 public class HardwareMap implements Iterable<HardwareDevice> {
     public final DeviceMapping<DcMotor> dcMotor = new DeviceMapping<>(DcMotor.class);
+    public final DeviceMapping<Servo> servo = new DeviceMapping<>(Servo.class);
+    public final DeviceMapping<CRServo> crservo = new DeviceMapping<>(CRServo.class);
     public final DeviceMapping<VoltageSensor> voltageSensor = new DeviceMapping<>(VoltageSensor.class);
 
     private final Map<String, List<HardwareDevice>> allDevicesMap = new LinkedHashMap<>();
@@ -63,6 +65,8 @@ public class HardwareMap implements Iterable<HardwareDevice> {
         allDevicesMap.computeIfAbsent(deviceName, k -> new ArrayList<>()).add(device);
         allDevices.add(device);
         dcMotor.putIfType(deviceName, device);
+        servo.putIfType(deviceName, device);
+        crservo.putIfType(deviceName, device);
         voltageSensor.putIfType(deviceName, device);
     }
 
